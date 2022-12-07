@@ -23,10 +23,12 @@ struct MainGame {
     int height, width, bombs, numsCell, cellsRemain;
     vi bombCells, cells, display;
     bool isClicked, isStop;
+    short gameStatus;
     sf::Clock clock;
     sf::Time lastTime;
     void newgame()
     {
+        gameStatus = 0;
         isClicked = 0;
         isStop = 1;
         cells.assign(height * width, 0);
@@ -71,51 +73,77 @@ struct MainGame {
     void openCell(int x, int y)
     {
         int idx = toCell(x, y);
-        // if cell is flagged/opened or game is stopped, then it can't be open
-        if (isStop || display[idx] == 11 || display[idx] == cells[idx]) {
+        // if cell is flagged or game is stopped
+        if (isStop || display[idx] == 11) {
+            return;
+        }
+        // if cell is openned
+        if(display[idx] == cells[idx]) {
+            int cnt = 0;
+            for(int k = 0; k < 8; k++) {
+                int ei = x + td[k], ej = y + tc[k];
+                if(checkInside(ei, ej) && display[toCell(ei, ej)] == 11) {
+                    cnt++;
+                }
+            }
+            if(cnt == cells[idx]) {
+                for(int k = 0; k < 8; k++) {
+                    int ei = x + td[k], ej = y + tc[k];
+                    if(checkInside(ei, ej) && display[toCell(ei, ej)] == 10) {
+                        openCell(ei, ej);
+                    }
+                }
+            }
             return;
         }
         // if idx is bomb
         if (cells[idx] == 9) {
             for (int i = 0; i < numsCell; i++) {
-                display[i] = cells[i];
+                if(i == idx) {
+                    display[i] = 12;
+                }
+                else if(cells[i] == 9 && display[i] == 10) {
+                    display[i] = 9;
+                }
+                else if(cells[i] != 9 && display[i] == 11) {
+                    display[i] = 13;
+                }
             }
-            // lose the game
+            gameStatus = 1;
             isStop = 1;
             return;
         }
         display[idx] = cells[idx];
         cellsRemain--;
-        // if idx != 0
-        if (cells[idx] != 0) {
-            if (cellsRemain == bombs) {
-                // win the game
-                isStop = 1;
-            }
-            return;
-        }
         // if idx == 0
-        std::queue<ii> q;
-        q.push({ x, y });
-        while (!q.empty()) {
-            ii u = q.front();
-            q.pop();
-            for (int k = 0; k < 8; k++) {
-                int ei = u.F + td[k], ej = u.S + tc[k];
-                int i = toCell(ei, ej);
-                if (checkInside(ei, ej) && display[i] == 10) {
-                    if (cells[i] == 0) {
-                        q.push({ ei, ej });
-                    }
-                    display[i] = cells[i];
-                    cellsRemain--;
-                    if (cellsRemain == bombs) {
-                        // win the game
-                        isStop = 1;
-                        return;
+        if(cells[idx] == 0) {
+            std::queue<ii> q;
+            q.push({ x, y });
+            while (!q.empty()) {
+                ii u = q.front();
+                q.pop();
+                for (int k = 0; k < 8; k++) {
+                    int ei = u.F + td[k], ej = u.S + tc[k];
+                    int i = toCell(ei, ej);
+                    if (checkInside(ei, ej) && display[i] == 10) {
+                        if (cells[i] == 0) {
+                            q.push({ ei, ej });
+                        }
+                        display[i] = cells[i];
+                        cellsRemain--;
                     }
                 }
             }
+        }
+        if(cellsRemain == bombs) {
+            // win the game
+            for(int bomb : bombCells) {
+                if(display[bomb] == 10) {
+                    display[bomb] = 11;
+                }
+            }
+            gameStatus = 2;
+            isStop = 1;
         }
     }
     void build(int clickedCell)
@@ -148,32 +176,46 @@ struct MainGame {
         clock.restart();
     }
 };
-
-int main()
-{
-
+struct UI {
     sf::Text text;
     sf::Font font;
-    font.loadFromFile("assets/Comfortaa-Regular.ttf");
-    text.setFont(font);
-    text.setFillColor(sf::Color::Red);
-    text.setCharacterSize(12);
-    text.setStyle(sf::Text::Bold | sf::Text::Underlined);
-    text.setPosition(sf::Vector2f(300, 300));
-
-    // ----------------------------------------------------------------
-    // create the app
-    sf::RenderWindow app(sf::VideoMode(500, 500), "Minesweeper");
     sf::Texture texture;
-    texture.loadFromFile("assets/tiles.jpg");
-    sf::Sprite sprite(texture);
-
+    sf::Sprite sprite;
+    UI() {
+        font.loadFromFile("assets/Comfortaa-Regular.ttf");
+        text.setFont(font);
+        text.setFillColor(sf::Color::Red);
+        text.setCharacterSize(12);
+        text.setStyle(sf::Text::Bold | sf::Text::Underlined);
+        text.setPosition(sf::Vector2f(180, 315));
+        texture.loadFromFile("assets/tiles.jpg");
+        sprite.setTexture(texture);
+    }
+    void draw(sf::RenderWindow &app, MainGame &game) {
+        for (int i = 0; i < game.height; i++) {
+            for (int j = 0; j < game.width; j++) {
+                sprite.setTextureRect(sf::IntRect(sf::Vector2i(game.display[game.toCell(i, j)] * 32, 0), sf::Vector2i(32, 32)));
+                sprite.setPosition(sf::Vector2f(i * 32, j * 32));
+                app.draw(sprite);
+            }
+        }
+        // temp
+        text.setString(std::to_string((game.displayTime().asSeconds())));
+        app.draw(text);
+        sprite.setTextureRect(sf::IntRect(sf::Vector2i(14*32 + 39*(game.gameStatus), 0), sf::Vector2i(39, 39)));
+        sprite.setPosition(sf::Vector2f(10, 300));
+        app.draw(sprite);
+    }
+};
+int main()
+{
+    // create the app
+    sf::RenderWindow app(sf::VideoMode(288, 380), "Minesweeper");
     MainGame game;
+    UI ui;
     game.resizeGrid(9, 9, 10);
     // run the program as long as the app is open
     while (app.isOpen()) {
-        sf::Vector2i pos = sf::Mouse::getPosition(app);
-        int posX = pos.x / 32, posY = pos.y / 32;
 
         // check all the app's events that were triggered since the last iteration of the loop
         sf::Event event;
@@ -183,13 +225,18 @@ int main()
                 app.close();
             }
             else if (event.type == sf::Event::MouseButtonPressed) {
+                sf::Vector2i pos = sf::Mouse::getPosition(app);
+                int posX = pos.x / 32, posY = pos.y / 32;
                 // check if mouse is inside grid
-                if (!game.checkInside(posX, posY))
+                if (!game.checkInside(posX, posY)) {
+                    // replace with check click new game later
                     continue;
+                }
                 int idx = game.toCell(posX, posY);
                 if (event.mouseButton.button == sf::Mouse::Left) {
-                    if (!game.isClicked)
+                    if (!game.isClicked) {
                         game.build(idx);
+                    }
                     game.openCell(posX, posY);
                 }
                 else if (event.mouseButton.button == sf::Mouse::Right) {
@@ -203,17 +250,7 @@ int main()
             }
         }
         app.clear(sf::Color::White);
-        for (int i = 0; i < game.height; i++) {
-            for (int j = 0; j < game.width; j++) {
-                sprite.setTextureRect(sf::IntRect(sf::Vector2i(game.display[game.toCell(i, j)] * 32, 0), sf::Vector2i(32, 32)));
-                sprite.setPosition(sf::Vector2f(i * 32, j * 32));
-                app.draw(sprite);
-            }
-        }
-        // temp
-        text.setString(std::to_string((game.displayTime().asSeconds())));
-        app.draw(text);
-
+        ui.draw(app, game);
         app.display();
     }
 
