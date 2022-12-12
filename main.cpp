@@ -17,7 +17,8 @@ using vi = std::vector<int>;
 
 std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 
-const int td[] = { -1, -1, -1, 0, 1, 1, 1, 0 }, tc[] = { -1, 0, 1, 1, 1, 0, -1, -1 };
+const int td[] = { -1, -1, -1, 0, 1, 1, 1, 0 },
+          tc[] = { -1, 0, 1, 1, 1, 0, -1, -1 };
 
 struct MainGame {
     int height, width, bombs, numsCell, cellsRemain;
@@ -78,18 +79,18 @@ struct MainGame {
             return;
         }
         // if cell is openned
-        if(display[idx] == cells[idx]) {
+        if (display[idx] == cells[idx]) {
             int cnt = 0;
-            for(int k = 0; k < 8; k++) {
+            for (int k = 0; k < 8; k++) {
                 int ei = x + td[k], ej = y + tc[k];
-                if(checkInside(ei, ej) && display[toCell(ei, ej)] == 11) {
+                if (checkInside(ei, ej) && display[toCell(ei, ej)] == 11) {
                     cnt++;
                 }
             }
-            if(cnt == cells[idx]) {
-                for(int k = 0; k < 8; k++) {
+            if (cnt == cells[idx]) {
+                for (int k = 0; k < 8; k++) {
                     int ei = x + td[k], ej = y + tc[k];
-                    if(checkInside(ei, ej) && display[toCell(ei, ej)] == 10) {
+                    if (checkInside(ei, ej) && display[toCell(ei, ej)] == 10) {
                         openCell(ei, ej);
                     }
                 }
@@ -99,13 +100,13 @@ struct MainGame {
         // if idx is bomb
         if (cells[idx] == 9) {
             for (int i = 0; i < numsCell; i++) {
-                if(i == idx) {
+                if (i == idx) {
                     display[i] = 12;
                 }
-                else if(cells[i] == 9 && display[i] == 10) {
+                else if (cells[i] == 9 && display[i] == 10) {
                     display[i] = 9;
                 }
-                else if(cells[i] != 9 && display[i] == 11) {
+                else if (cells[i] != 9 && display[i] == 11) {
                     display[i] = 13;
                 }
             }
@@ -116,7 +117,7 @@ struct MainGame {
         display[idx] = cells[idx];
         cellsRemain--;
         // if idx == 0
-        if(cells[idx] == 0) {
+        if (cells[idx] == 0) {
             std::queue<ii> q;
             q.push({ x, y });
             while (!q.empty()) {
@@ -135,15 +136,16 @@ struct MainGame {
                 }
             }
         }
-        if(cellsRemain == bombs) {
+        if (cellsRemain == bombs) {
             // win the game
-            for(int bomb : bombCells) {
-                if(display[bomb] == 10) {
+            for (int bomb : bombCells) {
+                if (display[bomb] == 10) {
                     display[bomb] = 11;
                 }
             }
             gameStatus = 2;
             isStop = 1;
+            // update leaderboard
         }
     }
     void build(int clickedCell)
@@ -181,39 +183,52 @@ struct UI {
     sf::Font font;
     sf::Texture texture;
     sf::Sprite sprite;
-    UI() {
+    UI()
+    {
         font.loadFromFile("assets/Comfortaa-Regular.ttf");
         text.setFont(font);
         text.setFillColor(sf::Color::Red);
         text.setCharacterSize(12);
-        text.setStyle(sf::Text::Bold | sf::Text::Underlined);
-        text.setPosition(sf::Vector2f(180, 315));
+        text.setStyle(sf::Text::Bold);
+        text.setPosition(sf::Vector2f(180, 20));
         texture.loadFromFile("assets/tiles.jpg");
         sprite.setTexture(texture);
     }
-    void draw(sf::RenderWindow &app, MainGame &game) {
+    void draw(sf::RenderWindow& app, MainGame& game)
+    {
+        sprite.setTextureRect(sf::IntRect(sf::Vector2i(14 * 32 + 39 * (game.gameStatus), 0), sf::Vector2i(39, 39)));
+        sprite.setPosition(sf::Vector2f(10, 5));
+        app.draw(sprite);
+
+        sprite.setTextureRect(sf::IntRect(sf::Vector2i(14 * 32 + 39 * 3, 0), sf::Vector2i(39, 39)));
+        sprite.setPosition(sf::Vector2f(10 + 39 + 5, 5));
+        app.draw(sprite);
+
+        sprite.setTextureRect(sf::IntRect(sf::Vector2i(14 * 32 + 39 * 4, 0), sf::Vector2i(39, 39)));
+        sprite.setPosition(sf::Vector2f(10 + 39 + 5 + 39 + 5, 5));
+        app.draw(sprite);
+
         for (int i = 0; i < game.height; i++) {
             for (int j = 0; j < game.width; j++) {
                 sprite.setTextureRect(sf::IntRect(sf::Vector2i(game.display[game.toCell(i, j)] * 32, 0), sf::Vector2i(32, 32)));
-                sprite.setPosition(sf::Vector2f(i * 32, j * 32));
+                sprite.setPosition(sf::Vector2f(i * 32, j * 32 + 64));
                 app.draw(sprite);
             }
         }
-        // temp
         text.setString(std::to_string((game.displayTime().asSeconds())));
         app.draw(text);
-        sprite.setTextureRect(sf::IntRect(sf::Vector2i(14*32 + 39*(game.gameStatus), 0), sf::Vector2i(39, 39)));
-        sprite.setPosition(sf::Vector2f(10, 300));
-        app.draw(sprite);
     }
 };
 int main()
 {
     // create the app
-    sf::RenderWindow app(sf::VideoMode(288, 380), "Minesweeper");
+    sf::RenderWindow app(sf::VideoMode(288, 357), "Minesweeper", sf::Style::Close | sf::Style::Titlebar);
     MainGame game;
     UI ui;
     game.resizeGrid(9, 9, 10);
+
+    // load leaderboard here
+
     // run the program as long as the app is open
     while (app.isOpen()) {
 
@@ -226,10 +241,21 @@ int main()
             }
             else if (event.type == sf::Event::MouseButtonPressed) {
                 sf::Vector2i pos = sf::Mouse::getPosition(app);
-                int posX = pos.x / 32, posY = pos.y / 32;
+                int posX = pos.x / 32, posY = pos.y / 32 - 2;
                 // check if mouse is inside grid
                 if (!game.checkInside(posX, posY)) {
-                    // replace with check click new game later
+                    if (pos.y >= 5 && pos.y <= 44) {
+                        if (pos.x >= 10 && pos.x <= 49) {
+                            game.newgame();
+                        }
+                        else if (pos.x >= 54 && pos.x <= 93) {
+                        }
+                        else if (pos.x >= 98 && pos.x <= 137) {
+                        }
+                    }
+                    // newgame:   [10, 49] x [5, 44]
+                    // setting:   [54, 93] x [5, 44]
+                    // highscore: [98, 137] x [5, 44]
                     continue;
                 }
                 int idx = game.toCell(posX, posY);
@@ -256,3 +282,13 @@ int main()
 
     return 0;
 }
+
+// ?? music :)
+// remake clock
+// save game (state, best time)
+// setting (resize)
+// ?? using keyboard
+// redraw tiles
+// animation (pressed, ...)
+
+// https://www.sfml-dev.org/tutorials/2.5/system-stream.php
