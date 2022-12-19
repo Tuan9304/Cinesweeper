@@ -54,6 +54,7 @@
 			<Add directory="C:/SFML/2.6.x/include" />
 		</Compiler>
 		<Linker>
+			<Add option="-O2" />
 			<Add directory="C:/SFML/2.6.x/lib" />
 		</Linker>
 		<Unit filename="main.cpp" />

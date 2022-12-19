@@ -35,32 +35,64 @@ struct MainGame {
     bool isClicked, isStop;
     short gameStatus;
     sf::Clock clock;
-    sf::Time lastTime;
-    void save(std::ofstream &wf) {
-        wf.write((char*) &height, sizeof(height));
-        wf.write((char*) &width, sizeof(width));
-        wf.write((char*) &bombs, sizeof(bombs));
-        wf.write((char*) &numsCell, sizeof(numsCell));
-        wf.write((char*) &cellsRemain, sizeof(cellsRemain));
-        wf.write((char*) &bombCells, sizeof(bombCells));
-        wf.write((char*) &cells, sizeof(cells));
-        wf.write((char*) &display, sizeof(display));
-        wf.write((char*) &isClicked, sizeof(isClicked));
-        wf.write((char*) &isStop, sizeof(isStop));
-        wf.write((char*) &gameStatus, sizeof(gameStatus));
+    double lastTime;
+    void viWrite(std::ofstream &wf, const vi &v) {
+        int size = v.size();
+        wf.write((char *) &size, sizeof(int));
+        wf.write((char *) v.data(), v.size() * sizeof(int));
     }
-    void load(std::ifstream &rf) {
-        rf.read((char*) &height, sizeof(height));
-        rf.read((char*) &width, sizeof(width));
-        rf.read((char*) &bombs, sizeof(bombs));
-        rf.read((char*) &numsCell, sizeof(numsCell));
-        rf.read((char*) &cellsRemain, sizeof(cellsRemain));
-        rf.read((char*) &bombCells, sizeof(bombCells));
-        rf.read((char*) &cells, sizeof(cells));
-        rf.read((char*) &display, sizeof(display));
-        rf.read((char*) &isClicked, sizeof(isClicked));
-        rf.read((char*) &isStop, sizeof(isStop));
-        rf.read((char*) &gameStatus, sizeof(gameStatus));
+    void viRead(std::ifstream &rf, vi &v) {
+        int size;
+        rf.read((char *) &size, sizeof(int));
+        while(size--) {
+            int i;
+            rf.read((char *) &i, sizeof(int));
+            v.push_back(i);
+        }
+//        rf.read((char *) &v, size * sizeof(int));
+    }
+    void save() {
+        std::ofstream wf("game.dat", std::ios::out | std::ios::binary);
+        if(wf.is_open()) {
+            wf.write((char*) &height, sizeof(int));
+            wf.write((char*) &width, sizeof(int));
+            wf.write((char*) &bombs, sizeof(int));
+            wf.write((char*) &numsCell, sizeof(int));
+            wf.write((char*) &cellsRemain, sizeof(int));
+            viWrite(wf, bombCells);
+            viWrite(wf, cells);
+            viWrite(wf, display);
+            wf.write((char*) &isClicked, sizeof(bool));
+            wf.write((char*) &isStop, sizeof(bool));
+            wf.write((char*) &gameStatus, sizeof(short));
+            wf.write((char*) &lastTime, sizeof(double));
+            wf.close();
+        }
+        else {
+            std::cerr << "Unable to open data file\n";
+        }
+    }
+    void load() {
+        std::ifstream rf("game.dat", std::ios::in | std::ios::binary);
+        if(rf.is_open()) {
+            rf.read((char*) &height, sizeof(int));
+            rf.read((char*) &width, sizeof(int));
+            rf.read((char*) &bombs, sizeof(int));
+            rf.read((char*) &numsCell, sizeof(int));
+            rf.read((char*) &cellsRemain, sizeof(int));
+            viRead(rf, bombCells);
+            viRead(rf, cells);
+            viRead(rf, display);
+            rf.read((char*) &isClicked, sizeof(bool));
+            rf.read((char*) &isStop, sizeof(bool));
+            rf.read((char*) &gameStatus, sizeof(short));
+            rf.read((char*) &lastTime, sizeof(double));
+            rf.close();
+        }
+        else {
+            std::cerr << "Unable to open data file\n";
+            resizeGrid(9, 9, 10);
+        }
     }
     void newgame()
     {
@@ -72,13 +104,13 @@ struct MainGame {
         cellsRemain = numsCell;
         bombCells.clear();
     }
-    sf::Time displayTime()
+    double displayTime()
     {
         if (!isClicked) {
-            return sf::Time();
+            return 0;
         }
         if (!isStop) {
-            lastTime = clock.getElapsedTime();
+            lastTime = clock.getElapsedTime().asSeconds();
         }
         return lastTime;
     }
@@ -243,10 +275,8 @@ int main()
 
     MainGame game;
 
-    // load leaderboard here
-    std::ifstream rf("game.dat", std::ios::in | std::ios::binary);
-    game.resizeGrid(9,9,10);
-    rf.close();
+    // load data
+    game.load();
 
     // create the app
     sf::RenderWindow app(sf::VideoMode(32 * game.width, 32 * (game.height + 2)), "Minesweeper", sf::Style::Close | sf::Style::Titlebar);
@@ -270,23 +300,29 @@ int main()
                 app.setView(sf::View(visibleArea));
             }
             else if(event.type == sf::Event::Closed) {
-                std::ofstream wf("game.dat", std::ios::out | std::ios::binary);
-                wf.close();
+                game.save();
                 app.close();
             }
             else if (event.type == sf::Event::KeyPressed) {
                 if (event.key.code == sf::Keyboard::N) {
-                    // fix later
-                    if(gameState == 0) {
-                        game.newgame();
-                    }
-                    else gameState = 0;
+                    game.newgame();
+                    gameState = 0;
                 }
                 else if(event.key.code == sf::Keyboard::Escape) {
-                    gameState = 1;
+                    if(gameState == 1) {
+                        gameState = 0;
+                    }
+                    else {
+                        gameState = 1;
+                    }
                 }
                 else if(event.key.code == sf::Keyboard::L) {
-                    gameState = 2;
+                    if(gameState == 2) {
+                        gameState = 0;
+                    }
+                    else {
+                        gameState = 2;
+                    }
                 }
             }
             else if (event.type == sf::Event::MouseButtonPressed) {
@@ -374,7 +410,7 @@ int main()
                     app.draw(sprite);
                 }
             }
-            text.setString(std::to_string((game.displayTime().asSeconds())));
+            text.setString(std::to_string(game.displayTime()));
             app.draw(text);
         }
         else if(gameState == 1) {
@@ -421,12 +457,11 @@ int main()
     return 0;
 }
 
-// ?? music :)
-// remake clock
-// save game (state(whole struct?), best time)
-// setting (resize)
-// ?? using keyboard
+// setting (custom board)
+// save (best time)
+// remake timer
+// music
 // redraw tiles
-// animation (pressed, ...)
 
-// https://www.sfml-dev.org/tutorials/2.5/system-stream.php
+// animation (pressed, ...)
+// using keyboard
