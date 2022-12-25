@@ -27,33 +27,30 @@ const short tx[] = { 0, 1, 2, 0, 0, 1, 2, 2, 1 },
 const short mx[] = { 32, 32 * 5, 32, 32 * 5 },
             my[] = { 32, 32, 32 * 5, 32 * 5 };
 
-class NumField : public sf::Transformable, public sf::Drawable {
-public:
-    NumField(unsigned int maxChars)
-        : maxDigit(maxChars)
-        , rect(sf::Vector2f(15 * maxDigit, 20))
-        , // 15 pixels per char, 20 pixels height, you can tweak
-        hasfocus(false)
-    {
+struct NumField : public sf::Drawable {
+    NumField(unsigned int maxd, const sf::Vector2f &pos) {
+        maxDigit = maxd;
+        rect.setSize(sf::Vector2f(25 * maxDigit, 39));
+        hasfocus = 0;
         if(!font.loadFromFile("assets/Comfortaa-Regular.ttf")) {
             std::cerr << "can not load font!\n";
         }
         rect.setOutlineThickness(2);
         rect.setFillColor(sf::Color::White);
         rect.setOutlineColor(sf::Color(127, 127, 127));
-        rect.setPosition(this->getPosition());
-    }
-    const std::string getText() const {
-        return text;
+        dText.setFont(font);
+        dText.setCharacterSize(28);
+        dText.setFillColor(sf::Color::Black);
+        setPosition(pos);
     }
     int getNum() const
     {
         return num;
     }
-    void setPosition(double x, double y)
+    void setPosition(const sf::Vector2f &pos)
     {
-        sf::Transformable::setPosition(sf::Vector2f(x, y));
-        rect.setPosition(sf::Vector2f(x, y));
+        rect.setPosition(pos);
+        dText.setPosition(sf::Vector2f(pos.x + 10, pos.y + 5));
     }
     bool contains(sf::Vector2f point) const
     {
@@ -82,11 +79,17 @@ public:
             text.push_back(e.text.unicode);
             num = num * 10 + (e.text.unicode - 48);
         }
+        dText.setString(text);
     }
-
+    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const
+    {
+        target.draw(rect, states);
+        target.draw(dText, states);
+    }
 private:
     unsigned int maxDigit;
     sf::Font font;
+    sf::Text dText;
     std::string text;
     int num;
     sf::RectangleShape rect;
@@ -339,7 +342,7 @@ void drawSprite(sf::Sprite sprite, sf::RenderWindow& app, int posX, int posY, in
 int main()
 {
     sf::Font font;
-    sf::Text text, menuText;
+    sf::Text text, menuText, customText;
     sf::Texture texture;
     sf::Sprite sprite;
     short appState = 0;
@@ -350,19 +353,26 @@ int main()
         return 1;
     }
 
+    NumField customHeight(3, sf::Vector2f(200, 70)),
+             customWidth(3, sf::Vector2f(200, 150)),
+             customBombs(3, sf::Vector2f(200, 230));
+
+    customText.setFont(font);
+    customText.setFillColor(sf::Color::Black);
+    customText.setCharacterSize(28);
+
     sprite.setTexture(texture);
     //
     text.setFont(font);
     text.setFillColor(sf::Color::Red);
-    text.setCharacterSize(12);
+    text.setCharacterSize(20);
     text.setStyle(sf::Text::Bold);
     text.setPosition(sf::Vector2f(180, 20));
     //
 
     menuText.setFont(font);
     menuText.setFillColor(sf::Color::Black);
-    menuText.setCharacterSize(15);
-    menuText.setStyle(sf::Text::Bold);
+    menuText.setCharacterSize(18);
 
     MainGame game;
 
@@ -476,13 +486,31 @@ int main()
                 else if (appState == 2) {
                 }
             }
-            else if(event.type == sf::Event::TextEntered && appState == 3) {
-
+            else if(appState == 3) {
+                auto pos = sf::Vector2f(sf::Mouse::getPosition(app));
+                if(event.type == sf::Event::MouseButtonReleased) {
+                    customBombs.setFocus(customBombs.contains(pos));
+                    customHeight.setFocus(customHeight.contains(pos));
+                    customWidth.setFocus(customWidth.contains(pos));
+                }
+                else {
+                    customBombs.handleInput(event);
+                    customHeight.handleInput(event);
+                    customWidth.handleInput(event);
+                }
             }
         }
 
         // start drawing
         app.clear(sf::Color::White);
+
+//        if(appState != 0) {
+//            for (int i = 0; i < 11; i++) {
+//                for (int j = 0; j < 9; j++) {
+//                    drawSprite(sprite, app, 0, 0, 32, 32, j * 32, i * 32);
+//                }
+//            }
+//        }
 
         drawSprite(sprite, app, 39 * (game.gameStatus), 32, 39, 39, 10, 5);
         drawSprite(sprite, app, 39 * 3, 32, 39, 39, 10 + 39 + 5, 5);
@@ -500,11 +528,7 @@ int main()
         }
         else if (appState == 1) {
             app.setSize(sf::Vector2u(288, 352));
-            for (int i = 0; i < 9; i++) {
-                for (int j = 0; j < 9; j++) {
-                    drawSprite(sprite, app, 0, 0, 32, 32, j * 32, i * 32 + 64);
-                }
-            }
+            drawSprite(sprite, app, 39 * 3, 32, 39, 39, 236, 5);
             for (int i = 0; i < 4; i++) {
                 for (int k = 0; k < 9; k++) {
                     drawSprite(sprite, app, 39 * 5 + 32 * k, 32, 32, 32, 32 * tx[k] + mx[i], 64 + 32 * ty[k] + my[i]);
@@ -519,18 +543,47 @@ int main()
             app.setSize(sf::Vector2u(288, 352));
         }
         else if (appState == 3) {
+            drawSprite(sprite, app, 39 * 3, 32, 39, 39, 236, 5);
 
+            app.draw(customBombs);
+            customText.setPosition(sf::Vector2f(13, 75));
+            customText.setString("Height");
+            app.draw(customText);
+
+            app.draw(customHeight);
+            customText.setPosition(sf::Vector2f(13, 155));
+            customText.setString("Width");
+            app.draw(customText);
+
+            app.draw(customWidth);
+            customText.setPosition(sf::Vector2f(13, 235));
+            customText.setString("Bombs");
+            app.draw(customText);
+
+            drawSprite(sprite, app, 39 * 5, 32, 32, 32, 64, 285);
+            drawSprite(sprite, app, 39 * 5 + 32, 32, 32, 32, 64 + 32, 285);
+            drawSprite(sprite, app, 39 * 5 + 32, 32, 32, 32, 64 + 64, 285);
+            drawSprite(sprite, app, 39 * 5 + 32, 32, 32, 32, 64 + 96, 285);
+            drawSprite(sprite, app, 39 * 5 + 64, 32, 32, 32, 64 + 128, 285);
+            drawSprite(sprite, app, 39 * 5 + 32 * 4, 32, 32, 32, 64, 285 + 32);
+            drawSprite(sprite, app, 39 * 5 + 32 * 5, 32, 32, 32, 64 + 32, 285 + 32);
+            drawSprite(sprite, app, 39 * 5 + 32 * 5, 32, 32, 32, 64 + 64, 285 + 32);
+            drawSprite(sprite, app, 39 * 5 + 32 * 5, 32, 32, 32, 64 + 96, 285 + 32);
+            drawSprite(sprite, app, 39 * 5 + 32 * 6, 32, 32, 32, 64 + 128, 285 + 32);
+
+            customText.setPosition(sf::Vector2f(72, 300));
+            customText.setString("Let's start");
+            app.draw(customText);
         }
         app.display();
     }
     return 0;
 }
 
-// setting (custom board)
-// save (best time)
-// remake timer
+// custom setting: usable button
+// save: time, best time
+// remake timer: algorithm & display ui
 // music
 // redraw tiles
-
-// animation (pressed, ...)
-// using keyboard
+// animation (pressed, released, ...)
+// more keyboard using
