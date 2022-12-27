@@ -42,6 +42,7 @@ struct NumField : public sf::Drawable {
         dText.setCharacterSize(28);
         dText.setFillColor(sf::Color::Black);
         setPosition(pos);
+        num = 0;
     }
     int getNum() const
     {
@@ -339,19 +340,45 @@ void drawSprite(sf::Sprite sprite, sf::RenderWindow& app, int posX, int posY, in
     sprite.setPosition(sf::Vector2f(aposX, aposY));
     app.draw(sprite);
 }
+bool checkCustomMode(int height, int width, int bombs, int &errc) {
+    auto res = sf::VideoMode::getDesktopMode();
+    errc = 0;
+    if(height == 0) {
+        errc |= 1;
+    }
+    if(height > (res.height / 32) - 7) {
+        errc |= 2;
+    }
+    if(width == 0) {
+        errc |= 4;
+    }
+    if(width > (res.width / 32) - 2) {
+        errc |= 8;
+    }
+    if(bombs > height * width) {
+        errc |= 16;
+    }
+    return !errc;
+}
 int main()
 {
     sf::Font font;
-    sf::Text text, menuText, customText;
+    sf::Text text, menuText, customText, errText;
     sf::Texture texture;
     sf::Sprite sprite;
     short appState = 0;
+    int errc = 0;
 
     // load assets
     if (!font.loadFromFile("assets/Comfortaa-Regular.ttf") || !texture.loadFromFile("assets/tiles.jpg")) {
         std::cerr << "can not load assets\n";
         return 1;
     }
+
+    errText.setFont(font);
+    errText.setFillColor(sf::Color::Red);
+    errText.setCharacterSize(15);
+    errText.setStyle(sf::Text::Bold);
 
     NumField customHeight(3, sf::Vector2f(200, 70)),
              customWidth(3, sf::Vector2f(200, 150)),
@@ -445,6 +472,14 @@ int main()
                     else if (pos.x >= 98 && pos.x <= 137) {
                         appState = 2;
                     }
+                    else if(pos.x >= 236 && pos.x <= 275 && appState) {
+                        if(appState == 3) {
+                            appState = 1;
+                        }
+                        else if(appState == 1 || appState == 2) {
+                            appState = 0;
+                        }
+                    }
                 }
                 else if (appState == 0) {
                     int posX = pos.x / 32, posY = pos.y / 32 - 2;
@@ -485,6 +520,17 @@ int main()
                 }
                 else if (appState == 2) {
                 }
+                else if(appState == 3) {
+                    if(pos.x >= 64 && pos.x <= 224 && pos.y >= 285 && pos.y <= 349) {
+                        int h = customHeight.getNum();
+                        int w = customWidth.getNum();
+                        int b = customBombs.getNum();
+                        if(checkCustomMode(h, w, b, errc)) {
+                            game.resizeGrid(Level(h, w, b, "Custom"));
+                            appState = 0;
+                        }
+                    }
+                }
             }
             else if(appState == 3) {
                 auto pos = sf::Vector2f(sf::Mouse::getPosition(app));
@@ -523,7 +569,9 @@ int main()
                     drawSprite(sprite, app, game.display[game.toCell(i, j)] * 32, 0, 32, 32, j * 32, i * 32 + 64);
                 }
             }
-            text.setString(std::to_string(game.displayTime()));
+            std::string timer = std::to_string((int) game.displayTime());
+            text.setString(timer);
+            text.setPosition(sf::Vector2f(32 * game.width - 15 - timer.size() * 10, 20));
             app.draw(text);
         }
         else if (appState == 1) {
@@ -544,21 +592,39 @@ int main()
         }
         else if (appState == 3) {
             drawSprite(sprite, app, 39 * 3, 32, 39, 39, 236, 5);
+            auto res = sf::VideoMode::getDesktopMode();
 
             app.draw(customBombs);
-            customText.setPosition(sf::Vector2f(13, 75));
+            customText.setPosition(sf::Vector2f(13, 73));
             customText.setString("Height");
             app.draw(customText);
+            if((errc & 1) || (errc & 2)) {
+                if(errc & 1) errText.setString("Height must > 0");
+                else errText.setString("Height must < " + std::to_string(res.height / 32 - 6));
+                errText.setPosition(sf::Vector2f(13, 50));
+                app.draw(errText);
+            }
 
             app.draw(customHeight);
-            customText.setPosition(sf::Vector2f(13, 155));
+            customText.setPosition(sf::Vector2f(13, 153));
             customText.setString("Width");
             app.draw(customText);
+            if((errc & 4) || (errc & 8)) {
+                if(errc & 4) errText.setString("Width must > 0");
+                else errText.setString("Width must < " + std::to_string(res.width / 32 - 1));
+                errText.setPosition(sf::Vector2f(13, 130));
+                app.draw(errText);
+            }
 
             app.draw(customWidth);
-            customText.setPosition(sf::Vector2f(13, 235));
+            customText.setPosition(sf::Vector2f(13, 233));
             customText.setString("Bombs");
             app.draw(customText);
+            if(errc & 16) {
+                errText.setString("Bombs must <= " + std::to_string(customHeight.getNum() * customWidth.getNum()));
+                errText.setPosition(sf::Vector2f(13, 210));
+                app.draw(errText);
+            }
 
             drawSprite(sprite, app, 39 * 5, 32, 32, 32, 64, 285);
             drawSprite(sprite, app, 39 * 5 + 32, 32, 32, 32, 64 + 32, 285);
@@ -580,7 +646,6 @@ int main()
     return 0;
 }
 
-// custom setting: usable button
 // save: time, best time
 // remake timer: algorithm & display ui
 // music
