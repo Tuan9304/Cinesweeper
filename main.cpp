@@ -4,7 +4,9 @@
 #include <random>
 #include <queue>
 #include <fstream>
-
+#include <thread>
+#include <chrono>
+#include <atomic>
 // temp
 #include <string>
 #include <iostream>
@@ -26,6 +28,47 @@ const short tx[] = { 0, 1, 2, 0, 0, 1, 2, 2, 1 },
 
 const short mx[] = { 32, 32 * 5, 32, 32 * 5 },
             my[] = { 32, 32, 32 * 5, 32 * 5 };
+
+struct Timer {
+    template<typename Func>
+    void setInterval(Func func, int interval) {
+        active = 1;
+        std::thread t([=]() {
+            while(active.load()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+                if(!active.load()) return;
+                func();
+            }
+        });
+        t.detach();
+    }
+    void stop() {
+        active = 0;
+    }
+private:
+    std::atomic<bool> active = 1;
+};
+
+struct Clock {
+    void load(int init) {
+        t.stop();
+        timer = init;
+        t.setInterval([&]() {
+            timer++;
+        }, 999);
+    }
+    int restart() {
+        int et = timer;
+        load(0);
+        return et;
+    }
+    int getElapsedTime() {
+        return timer;
+    }
+private:
+    int timer = 0;
+    Timer t;
+};
 
 struct NumField : public sf::Drawable {
     NumField(unsigned int maxd, const sf::Vector2f &pos) {
@@ -120,27 +163,10 @@ const Level defaultLevel[] = { Level(9, 9, 10, "Easy"),
 
 struct MainGame {
     int height, width, bombs, numsCell, cellsRemain;
-    vi bombCells, cells, display;
+    vi display;
     bool isClicked, isStop;
     short gameStatus;
-    sf::Clock clock;
-    double lastTime;
-    void viWrite(std::ofstream& wf, const vi& v)
-    {
-        int size = v.size();
-        wf.write((char*)&size, sizeof(int));
-        wf.write((char*)v.data(), v.size() * sizeof(int));
-    }
-    void viRead(std::ifstream& rf, vi& v)
-    {
-        int size;
-        rf.read((char*)&size, sizeof(int));
-        while (size--) {
-            int i;
-            rf.read((char*)&i, sizeof(int));
-            v.push_back(i);
-        }
-    }
+
     void save()
     {
         std::ofstream wf("game.dat", std::ios::out | std::ios::binary);
@@ -155,7 +181,7 @@ struct MainGame {
             wf.write((char*)&isClicked, sizeof(bool));
             wf.write((char*)&isStop, sizeof(bool));
             wf.write((char*)&gameStatus, sizeof(short));
-            wf.write((char*)&lastTime, sizeof(double));
+            wf.write((char*)&lastTime, sizeof(int));
             wf.close();
         }
         else {
@@ -176,10 +202,11 @@ struct MainGame {
             rf.read((char*)&isClicked, sizeof(bool));
             rf.read((char*)&isStop, sizeof(bool));
             rf.read((char*)&gameStatus, sizeof(short));
-            rf.read((char*)&lastTime, sizeof(double));
+            rf.read((char*)&lastTime, sizeof(int));
             rf.close();
 
             numsCell = height * width;
+            clock.load(lastTime);
         }
         else {
             std::cerr << "Unable to open data file\n";
@@ -196,13 +223,13 @@ struct MainGame {
         cellsRemain = numsCell;
         bombCells.clear();
     }
-    double displayTime()
+    int displayTime()
     {
         if (!isClicked) {
             return 0;
         }
         if (!isStop) {
-            lastTime = clock.getElapsedTime().asSeconds();
+            lastTime = clock.getElapsedTime();
         }
         return lastTime;
     }
@@ -333,6 +360,27 @@ struct MainGame {
         isStop = 0;
         clock.restart();
     }
+private:
+    Clock clock;
+    int lastTime;
+    vi bombCells, cells;
+
+    void viWrite(std::ofstream& wf, const vi& v)
+    {
+        int size = v.size();
+        wf.write((char*)&size, sizeof(int));
+        wf.write((char*)v.data(), v.size() * sizeof(int));
+    }
+    void viRead(std::ifstream& rf, vi& v)
+    {
+        int size;
+        rf.read((char*)&size, sizeof(int));
+        while (size--) {
+            int i;
+            rf.read((char*)&i, sizeof(int));
+            v.push_back(i);
+        }
+    }
 };
 void drawSprite(sf::Sprite sprite, sf::RenderWindow& app, int posX, int posY, int w, int h, double aposX, double aposY)
 {
@@ -366,11 +414,12 @@ int main()
     sf::Text text, menuText, customText, errText;
     sf::Texture texture;
     sf::Sprite sprite;
+    sf::Image icon;
     short appState = 0;
     int errc = 0;
 
     // load assets
-    if (!font.loadFromFile("assets/Comfortaa-Regular.ttf") || !texture.loadFromFile("assets/tiles.jpg")) {
+    if (!font.loadFromFile("assets/Comfortaa-Regular.ttf") || !texture.loadFromFile("assets/tiles.jpg") || !icon.loadFromFile("assets/icon.png")) {
         std::cerr << "can not load assets\n";
         return 1;
     }
@@ -411,6 +460,7 @@ int main()
         "Minesweeper", sf::Style::Close | sf::Style::Titlebar);
 
     // icon
+    app.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
     // sound
 
@@ -569,7 +619,7 @@ int main()
                     drawSprite(sprite, app, game.display[game.toCell(i, j)] * 32, 0, 32, 32, j * 32, i * 32 + 64);
                 }
             }
-            std::string timer = std::to_string((int) game.displayTime());
+            std::string timer = std::to_string(game.displayTime());
             text.setString(timer);
             text.setPosition(sf::Vector2f(32 * game.width - 15 - timer.size() * 10, 20));
             app.draw(text);
@@ -646,9 +696,9 @@ int main()
     return 0;
 }
 
-// save: time, best time
-// remake timer: algorithm & display ui
+// save: best time
+// improve clock
+// improve ui
 // music
-// redraw tiles
 // animation (pressed, released, ...)
 // more keyboard using
