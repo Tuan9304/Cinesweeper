@@ -168,32 +168,31 @@ private:
 };
 
 struct Level {
-    int height, width, bombs;
-    std::string name;
-    Level(std::string n)
-        : name(n)
-    {
-    }
-    Level(int h, int w, int b, std::string n)
+    int height, width, bombs, dif;
+    Level(int h, int w, int b, int d)
         : height(h)
         , width(w)
         , bombs(b)
-        , name(n)
+        , dif(d)
     {
+    }
+    bool cmp(Level lvl) {
+        return ((lvl.height == height && lvl.width == width) || (lvl.height == width && lvl.width == height)) && bombs == lvl.bombs;
     }
 };
 
-const Level defaultLevel[] = { Level(9, 9, 10, "Easy"),
-    Level(16, 16, 40, "Medium"),
-    Level(16, 30, 99, "Hard"),
-    Level("Custom") };
+const std::string levelName[] = {"Easy", "Medium", "Hard", "Custom" };
+
+const Level defaultLevel[] = { Level(9, 9, 10, 0),
+    Level(16, 16, 40, 1),
+    Level(16, 30, 99, 2),
+    Level(0, 0, 0, 3) };
 
 struct MainGame {
-    int height, width, bombs, numsCell, cellsRemain;
+    int height, width, bombs, numsCell, cellsRemain, highscore[3] = {999, 999, 999};
     vi display;
     bool isClicked, isStop;
     short gameStatus;
-
     void save()
     {
         std::ofstream wf("game.dat", std::ios::out | std::ios::binary);
@@ -210,7 +209,9 @@ struct MainGame {
             wf.write((char*)&isClicked, sizeof(bool));
             wf.write((char*)&isStop, sizeof(bool));
             wf.write((char*)&gameStatus, sizeof(short));
+            wf.write((char*)&lastTime, sizeof(int));
             wf.write((char*)&rawTime, sizeof(int));
+            wf.write((char*)&highscore, sizeof(int) * 3);
             wf.close();
         }
         else {
@@ -235,11 +236,15 @@ struct MainGame {
             rf.read((char*)&isClicked, sizeof(bool));
             rf.read((char*)&isStop, sizeof(bool));
             rf.read((char*)&gameStatus, sizeof(short));
+            rf.read((char*)&lastTime, sizeof(int));
             rf.read((char*)&rawTime, sizeof(int));
+            rf.read((char*)&highscore, sizeof(int) * 3);
             rf.close();
 
             numsCell = height * width;
-            lastTime = rawTime >> clock.hs;
+            if(!isStop) {
+                lastTime = rawTime >> clock.hs;
+            }
             clock.load(rawTime);
         }
         else {
@@ -276,6 +281,7 @@ struct MainGame {
     {
         height = level.height;
         width = level.width;
+        lvl = level.dif;
         numsCell = height * width;
         bombs = std::min(numsCell - 1, level.bombs);
         newgame();
@@ -362,7 +368,11 @@ struct MainGame {
             }
             gameStatus = 2;
             isStop = 1;
+
             // update leaderboard
+            if(lvl < 3 && highscore[lvl] > displayTime()) {
+                highscore[lvl] = displayTime();
+            }
         }
     }
     void build(int clickedCell)
@@ -396,7 +406,7 @@ struct MainGame {
     }
 private:
     Clock clock;
-    int lastTime;
+    int lastTime, lvl;
     vi bombCells, cells;
 
     void viWrite(std::ofstream& wf, const vi& v)
@@ -610,7 +620,14 @@ int main()
                         int w = customWidth.getNum();
                         int b = customBombs.getNum();
                         if(checkCustomMode(h, w, b, errc)) {
-                            game.resizeGrid(Level(h, w, b, "Custom"));
+                            Level cst(h, w, b, 3);
+                            for(int i = 0; i <= 2; i++) {
+                                if(cst.cmp(defaultLevel[i])) {
+                                    cst.dif = i;
+                                    break;
+                                }
+                            }
+                            game.resizeGrid(cst);
                             appState = 0;
                         }
                     }
@@ -665,7 +682,7 @@ int main()
                 for (int k = 0; k < 9; k++) {
                     drawSprite(sprite, app, 39 * 5 + 32 * k, 32, 32, 32, 32 * tx[k] + mx[i], 64 + 32 * ty[k] + my[i]);
 
-                    menuText.setString(defaultLevel[i].name);
+                    menuText.setString(levelName[i]);
                     menuText.setPosition(sf::Vector2f(mx[i] + 15, 64 + my[i] + 15));
                     app.draw(menuText);
                 }
@@ -673,6 +690,27 @@ int main()
         }
         else if (appState == 2) {
             app.setSize(sf::Vector2u(288, 352));
+            // add name later
+            customText.setPosition(sf::Vector2f(13, 73));
+            customText.setString("Easy");
+            app.draw(customText);
+            customText.setPosition(sf::Vector2f(203, 73));
+            customText.setString(std::to_string(game.highscore[0]));
+            app.draw(customText);
+
+            customText.setPosition(sf::Vector2f(13, 153));
+            customText.setString("Medium");
+            app.draw(customText);
+            customText.setPosition(sf::Vector2f(203, 153));
+            customText.setString(std::to_string(game.highscore[1]));
+            app.draw(customText);
+
+            customText.setPosition(sf::Vector2f(13, 233));
+            customText.setString("Hard");
+            app.draw(customText);
+            customText.setPosition(sf::Vector2f(203, 233));
+            customText.setString(std::to_string(game.highscore[2]));
+            app.draw(customText);
         }
         else if (appState == 3) {
             drawSprite(sprite, app, 39 * 3, 32, 39, 39, 236, 5);
@@ -705,7 +743,7 @@ int main()
             customText.setString("Bombs");
             app.draw(customText);
             if(errc & 16) {
-                errText.setString("Bombs must <= " + std::to_string(customHeight.getNum() * customWidth.getNum()));
+                errText.setString("Bombs must <= HxW (" + std::to_string(customHeight.getNum() * customWidth.getNum()) + ")");
                 errText.setPosition(sf::Vector2f(13, 210));
                 app.draw(errText);
             }
@@ -731,7 +769,6 @@ int main()
     return 0;
 }
 
-// save: best time
 // improve ui
 // music
 // animation (pressed, released, ...)
