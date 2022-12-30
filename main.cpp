@@ -7,6 +7,8 @@
 #include <thread>
 #include <chrono>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 // temp
 #include <string>
 #include <iostream>
@@ -32,30 +34,52 @@ const short mx[] = { 32, 32 * 5, 32, 32 * 5 },
 struct Timer {
     template<typename Func>
     void setInterval(Func func, int interval) {
-        active = 1;
-        std::thread t([=]() {
-            while(active.load()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-                if(!active.load()) return;
-                func();
-            }
-        });
-        t.detach();
+        exitThread = 0;
+        if(t.joinable()) {
+            std::cerr << "Thread error\n";
+        }
+        else {
+            t = std::thread([=]() {
+                while(!exitThread) {
+                    {
+                        std::unique_lock<std::mutex> lock(mtxAlert);
+                        if(sigAlert.wait_for(lock, std::chrono::milliseconds(interval), [&]() { return exitThread.load(); })) {
+                            break;
+                        }
+                    }
+                    func();
+                }
+            });
+        }
     }
     void stop() {
-        active = 0;
+        {
+            std::lock_guard<std::mutex> guard(mtxAlert);
+            exitThread = 1;
+        }
+        sigAlert.notify_all();
+        if(t.joinable()) {
+            t.join();
+        }
     }
 private:
-    std::atomic<bool> active = 1;
+    std::thread t;
+    std::atomic<bool> exitThread = 0;
+    std::mutex mtxAlert;
+    std::condition_variable sigAlert;
 };
 
 struct Clock {
+    const int hs = 2;
     void load(int init) {
         t.stop();
         timer = init;
         t.setInterval([&]() {
             timer++;
-        }, 999);
+        }, 249);
+    }
+    void stop() {
+        t.stop();
     }
     int restart() {
         int et = timer;
@@ -63,6 +87,9 @@ struct Clock {
         return et;
     }
     int getElapsedTime() {
+        return timer >> hs;
+    }
+    int getRawTime() {
         return timer;
     }
 private:
@@ -171,6 +198,8 @@ struct MainGame {
     {
         std::ofstream wf("game.dat", std::ios::out | std::ios::binary);
         if (wf.is_open()) {
+            int rawTime = clock.getRawTime();
+
             wf.write((char*)&height, sizeof(int));
             wf.write((char*)&width, sizeof(int));
             wf.write((char*)&bombs, sizeof(int));
@@ -181,17 +210,21 @@ struct MainGame {
             wf.write((char*)&isClicked, sizeof(bool));
             wf.write((char*)&isStop, sizeof(bool));
             wf.write((char*)&gameStatus, sizeof(short));
-            wf.write((char*)&lastTime, sizeof(int));
+            wf.write((char*)&rawTime, sizeof(int));
             wf.close();
         }
         else {
             std::cerr << "Unable to open data file\n";
         }
+
+        clock.stop();
     }
     void load()
     {
         std::ifstream rf("game.dat", std::ios::in | std::ios::binary);
         if (rf.is_open()) {
+            int rawTime;
+
             rf.read((char*)&height, sizeof(int));
             rf.read((char*)&width, sizeof(int));
             rf.read((char*)&bombs, sizeof(int));
@@ -202,11 +235,12 @@ struct MainGame {
             rf.read((char*)&isClicked, sizeof(bool));
             rf.read((char*)&isStop, sizeof(bool));
             rf.read((char*)&gameStatus, sizeof(short));
-            rf.read((char*)&lastTime, sizeof(int));
+            rf.read((char*)&rawTime, sizeof(int));
             rf.close();
 
             numsCell = height * width;
-            clock.load(lastTime);
+            lastTime = rawTime >> clock.hs;
+            clock.load(rawTime);
         }
         else {
             std::cerr << "Unable to open data file\n";
@@ -693,11 +727,11 @@ int main()
         }
         app.display();
     }
+
     return 0;
 }
 
 // save: best time
-// improve clock
 // improve ui
 // music
 // animation (pressed, released, ...)
