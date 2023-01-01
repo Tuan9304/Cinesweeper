@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <vector>
 #include <algorithm>
 #include <random>
@@ -189,7 +190,7 @@ const Level defaultLevel[] = { Level(9, 9, 10, 0),
     Level(0, 0, 0, 3) };
 
 struct MainGame {
-    int height, width, bombs, numsCell, cellsRemain, highscore[3] = {9999, 9999, 9999};
+    int height, width, bombs, numsCell, cellsRemain, highscore[3] = {9999, 9999, 9999}, bombsRemain;
     vi display;
     bool isClicked, isStop;
     short gameStatus;
@@ -212,6 +213,7 @@ struct MainGame {
             wf.write((char*)&lastTime, sizeof(int));
             wf.write((char*)&rawTime, sizeof(int));
             wf.write((char*)&highscore, sizeof(int) * 3);
+            wf.write((char*)&bombsRemain, sizeof(int));
             wf.close();
         }
         else {
@@ -239,6 +241,7 @@ struct MainGame {
             rf.read((char*)&lastTime, sizeof(int));
             rf.read((char*)&rawTime, sizeof(int));
             rf.read((char*)&highscore, sizeof(int) * 3);
+            rf.read((char*)&bombsRemain, sizeof(int));
             rf.close();
 
             numsCell = height * width;
@@ -261,6 +264,7 @@ struct MainGame {
         display.assign(numsCell, 10);
         cellsRemain = numsCell;
         bombCells.clear();
+        bombsRemain = bombs;
     }
     void resetHighscore() {
         highscore[0] = highscore[1] = highscore[2] = 9999;
@@ -292,10 +296,17 @@ struct MainGame {
     void flagCell(int idx)
     {
         // if cell is opened or game is stopped, then it can't be flagged
-        if (isStop || display[idx] == cells[idx]) {
+        if ((isStop && isClicked) || display[idx] == cells[idx]) {
             return;
         }
-        display[idx] ^= 1;
+        if(display[idx] == 11) {
+            bombsRemain++;
+            display[idx] ^= 1;
+        }
+        else if(bombsRemain > 0) {
+            bombsRemain--;
+            display[idx] ^= 1;
+        }
     }
     void openCell(int x, int y)
     {
@@ -462,11 +473,16 @@ int main()
     sf::Texture texture;
     sf::Sprite sprite;
     sf::Image icon;
+    sf::Music music;
     short appState = 0;
     int errc = 0;
 
     // load assets
-    if (!font.loadFromFile("assets/Comfortaa-Regular.ttf") || !texture.loadFromFile("assets/tiles.jpg") || !icon.loadFromFile("assets/icon.png")) {
+    if (!font.loadFromFile("assets/Comfortaa-Regular.ttf") ||
+        !texture.loadFromFile("assets/tiles.jpg") ||
+        !icon.loadFromFile("assets/icon.png") ||
+        !music.openFromFile("assets/music.ogg")) {
+
         std::cerr << "can not load assets\n";
         return 1;
     }
@@ -509,6 +525,10 @@ int main()
     app.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
     // sound
+    music.setLoop(1);
+    music.setVolume(6);
+    music.setPlayingOffset(sf::seconds(rng() % 200));
+    music.play();
 
     // run the program as long as the app is open
     while (app.isOpen()) {
@@ -573,8 +593,18 @@ int main()
                             appState = 0;
                         }
                     }
-                    else if (pos.x >= 192 && pos.x <= 230 && appState == 2) {
-                        game.resetHighscore();
+                    else if (pos.x >= 192 && pos.x <= 230) {
+                        if(appState == 2) {
+                            game.resetHighscore();
+                        }
+                        else if(appState == 1) {
+                            if(music.getStatus() == sf::Music::Paused) {
+                                music.play();
+                            }
+                            else {
+                                music.pause();
+                            }
+                        }
                     }
                 }
                 else if (appState == 0) {
@@ -594,7 +624,7 @@ int main()
                     }
                 }
                 else if (appState == 1) {
-                    if (pos.y >= 96 && pos.y <= 191) {
+                    if (pos.y >= 84 && pos.y <= 179) {
                         if (pos.x >= 32 && pos.x <= 127) {
                             game.resizeGrid(defaultLevel[0]);
                             appState = 0;
@@ -604,7 +634,7 @@ int main()
                             appState = 0;
                         }
                     }
-                    else if (pos.y >= 224 && pos.y <= 319) {
+                    else if (pos.y >= 212 && pos.y <= 307) {
                         if (pos.x >= 32 && pos.x <= 127) {
                             game.resizeGrid(defaultLevel[2]);
                             appState = 0;
@@ -651,7 +681,7 @@ int main()
         }
 
         // start drawing
-        app.clear(sf::Color::White);
+        app.clear(sf::Color(230, 230, 230));
 
         drawSprite(sprite, app, 39 * (game.gameStatus), 32, 39, 39, 10, 5);
         drawSprite(sprite, app, 39 * 3, 32, 39, 39, 10 + 39 + 5, 5);
@@ -664,21 +694,29 @@ int main()
                     drawSprite(sprite, app, game.display[game.toCell(i, j)] * 32, 0, 32, 32, j * 32, i * 32 + 64);
                 }
             }
+
+            text.setFillColor(game.gameStatus == 2 ? sf::Color::Blue : sf::Color::Red);
+
             std::string timer = std::to_string(game.displayTime());
             text.setString(timer);
-            text.setPosition(sf::Vector2f(32 * game.width - 15 - timer.size() * 10, 20));
-            text.setFillColor(game.gameStatus == 2 ? sf::Color::Blue : sf::Color::Red);
+            text.setPosition(sf::Vector2f(32 * game.width - 15 - timer.size() * 10, 14));
+            app.draw(text);
+
+            text.setString(std::to_string(game.gameStatus == 2 ? 0 : game.bombsRemain));
+            text.setPosition(sf::Vector2f(32 * game.width - 100, 14));
             app.draw(text);
         }
         else if (appState == 1) {
             app.setSize(sf::Vector2u(288, 352));
             drawSprite(sprite, app, 483, 0, 39, 39, 236, 5);
+            drawSprite(sprite, app, 522, 39 * (music.getStatus() == sf::Music::Paused), 39, 39, 236 - 5 - 39, 5);
+
             for (int i = 0; i < 4; i++) {
                 for (int k = 0; k < 9; k++) {
-                    drawSprite(sprite, app, 39 * 5 + 32 * k, 32, 32, 32, 32 * tx[k] + mx[i], 64 + 32 * ty[k] + my[i]);
+                    drawSprite(sprite, app, 39 * 5 + 32 * k, 32, 32, 32, 32 * tx[k] + mx[i], 52 + 32 * ty[k] + my[i]);
                 }
                 menuText.setString(levelName[i]);
-                menuText.setPosition(sf::Vector2f(mx[i] + 5 + (96 - levelName[i].size() * 16) / 2, 64 + my[i] + 33));
+                menuText.setPosition(sf::Vector2f(mx[i] + 5 + (96 - levelName[i].size() * 16) / 2, 52 + my[i] + 33));
                 app.draw(menuText);
             }
         }
@@ -764,7 +802,4 @@ int main()
     return 0;
 }
 
-// improve ui
-// music
 // animation (pressed, released, ...)
-// more keyboard using
