@@ -55,8 +55,14 @@
 		</Compiler>
 		<Linker>
 			<Add option="-O2" />
+			<Add option="-static-libstdc++" />
+			<Add option="-static-libgcc" />
+			<Add option="-static" />
 			<Add directory="C:/SFML/2.6.x/lib" />
 		</Linker>
+		<Unit filename="icon.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
 		<Unit filename="main.cpp" />
 		<Extensions />
 	</Project>

@@ -76,7 +76,7 @@ struct Clock {
         timer = init;
         t.setInterval([&]() {
             timer++;
-        }, 249);
+        }, 238);
     }
     void stop() {
         t.stop();
@@ -189,7 +189,7 @@ const Level defaultLevel[] = { Level(9, 9, 10, 0),
     Level(0, 0, 0, 3) };
 
 struct MainGame {
-    int height, width, bombs, numsCell, cellsRemain, highscore[3] = {999, 999, 999};
+    int height, width, bombs, numsCell, cellsRemain, highscore[3] = {9999, 9999, 9999};
     vi display;
     bool isClicked, isStop;
     short gameStatus;
@@ -261,6 +261,9 @@ struct MainGame {
         display.assign(numsCell, 10);
         cellsRemain = numsCell;
         bombCells.clear();
+    }
+    void resetHighscore() {
+        highscore[0] = highscore[1] = highscore[2] = 9999;
     }
     int displayTime()
     {
@@ -441,7 +444,7 @@ bool checkCustomMode(int height, int width, int bombs, int &errc) {
     if(height > (res.height / 32) - 7) {
         errc |= 2;
     }
-    if(width == 0) {
+    if(width < 9) {
         errc |= 4;
     }
     if(width > (res.width / 32) - 2) {
@@ -484,7 +487,6 @@ int main()
     sprite.setTexture(texture);
     //
     text.setFont(font);
-    text.setFillColor(sf::Color::Red);
     text.setCharacterSize(20);
     text.setStyle(sf::Text::Bold);
     text.setPosition(sf::Vector2f(180, 20));
@@ -492,7 +494,7 @@ int main()
 
     menuText.setFont(font);
     menuText.setFillColor(sf::Color::Black);
-    menuText.setCharacterSize(18);
+    menuText.setCharacterSize(20);
 
     MainGame game;
 
@@ -552,27 +554,27 @@ int main()
             else if (event.type == sf::Event::MouseButtonPressed) {
                 sf::Vector2i pos = sf::Mouse::getPosition(app);
 
-                if (pos.y >= 5 && pos.y <= 44) {
-                    // newgame:   [10, 49] x [5, 44]
-                    // setting:   [54, 93] x [5, 44]
-                    // highscore: [98, 137] x [5, 44]
-                    if (pos.x >= 10 && pos.x <= 49) {
+                if (pos.y >= 5 && pos.y <= 43) {
+                    if (pos.x >= 10 && pos.x <= 48) {
                         appState = 0;
                         game.newgame();
                     }
-                    else if (pos.x >= 54 && pos.x <= 93) {
+                    else if (pos.x >= 54 && pos.x <= 92) {
                         appState = 1;
                     }
-                    else if (pos.x >= 98 && pos.x <= 137) {
+                    else if (pos.x >= 98 && pos.x <= 136) {
                         appState = 2;
                     }
-                    else if(pos.x >= 236 && pos.x <= 275 && appState) {
+                    else if(pos.x >= 236 && pos.x <= 274 && appState) {
                         if(appState == 3) {
                             appState = 1;
                         }
                         else if(appState == 1 || appState == 2) {
                             appState = 0;
                         }
+                    }
+                    else if (pos.x >= 192 && pos.x <= 230 && appState == 2) {
+                        game.resetHighscore();
                     }
                 }
                 else if (appState == 0) {
@@ -592,22 +594,22 @@ int main()
                     }
                 }
                 else if (appState == 1) {
-                    if (pos.y >= 96 && pos.y <= 192) {
-                        if (pos.x >= 32 && pos.x <= 128) {
+                    if (pos.y >= 96 && pos.y <= 191) {
+                        if (pos.x >= 32 && pos.x <= 127) {
                             game.resizeGrid(defaultLevel[0]);
                             appState = 0;
                         }
-                        else if (pos.x >= 160 && pos.x <= 256) {
+                        else if (pos.x >= 160 && pos.x <= 255) {
                             game.resizeGrid(defaultLevel[1]);
                             appState = 0;
                         }
                     }
-                    else if (pos.y >= 224 && pos.y <= 320) {
-                        if (pos.x >= 32 && pos.x <= 128) {
+                    else if (pos.y >= 224 && pos.y <= 319) {
+                        if (pos.x >= 32 && pos.x <= 127) {
                             game.resizeGrid(defaultLevel[2]);
                             appState = 0;
                         }
-                        else if (pos.x >= 160 && pos.x <= 256) {
+                        else if (pos.x >= 160 && pos.x <= 255) {
                             appState = 3;
                         }
                     }
@@ -615,7 +617,7 @@ int main()
                 else if (appState == 2) {
                 }
                 else if(appState == 3) {
-                    if(pos.x >= 64 && pos.x <= 224 && pos.y >= 285 && pos.y <= 349) {
+                    if(pos.x >= 64 && pos.x <= 223 && pos.y >= 285 && pos.y <= 348) {
                         int h = customHeight.getNum();
                         int w = customWidth.getNum();
                         int b = customBombs.getNum();
@@ -651,14 +653,6 @@ int main()
         // start drawing
         app.clear(sf::Color::White);
 
-//        if(appState != 0) {
-//            for (int i = 0; i < 11; i++) {
-//                for (int j = 0; j < 9; j++) {
-//                    drawSprite(sprite, app, 0, 0, 32, 32, j * 32, i * 32);
-//                }
-//            }
-//        }
-
         drawSprite(sprite, app, 39 * (game.gameStatus), 32, 39, 39, 10, 5);
         drawSprite(sprite, app, 39 * 3, 32, 39, 39, 10 + 39 + 5, 5);
         drawSprite(sprite, app, 39 * 4, 32, 39, 39, 10 + 39 + 5 + 39 + 5, 5);
@@ -673,23 +667,25 @@ int main()
             std::string timer = std::to_string(game.displayTime());
             text.setString(timer);
             text.setPosition(sf::Vector2f(32 * game.width - 15 - timer.size() * 10, 20));
+            text.setFillColor(game.gameStatus == 2 ? sf::Color::Blue : sf::Color::Red);
             app.draw(text);
         }
         else if (appState == 1) {
             app.setSize(sf::Vector2u(288, 352));
-            drawSprite(sprite, app, 39 * 3, 32, 39, 39, 236, 5);
+            drawSprite(sprite, app, 483, 0, 39, 39, 236, 5);
             for (int i = 0; i < 4; i++) {
                 for (int k = 0; k < 9; k++) {
                     drawSprite(sprite, app, 39 * 5 + 32 * k, 32, 32, 32, 32 * tx[k] + mx[i], 64 + 32 * ty[k] + my[i]);
-
-                    menuText.setString(levelName[i]);
-                    menuText.setPosition(sf::Vector2f(mx[i] + 15, 64 + my[i] + 15));
-                    app.draw(menuText);
                 }
+                menuText.setString(levelName[i]);
+                menuText.setPosition(sf::Vector2f(mx[i] + 5 + (96 - levelName[i].size() * 16) / 2, 64 + my[i] + 33));
+                app.draw(menuText);
             }
         }
         else if (appState == 2) {
             app.setSize(sf::Vector2u(288, 352));
+            drawSprite(sprite, app, 483, 0, 39, 39, 236, 5);
+            drawSprite(sprite, app, 483, 39, 39, 39, 236 - 5 - 39, 5);
             // add name later
             customText.setPosition(sf::Vector2f(13, 73));
             customText.setString("Easy");
@@ -698,22 +694,22 @@ int main()
             customText.setString(std::to_string(game.highscore[0]));
             app.draw(customText);
 
-            customText.setPosition(sf::Vector2f(13, 153));
+            customText.setPosition(sf::Vector2f(13, 165));
             customText.setString("Medium");
             app.draw(customText);
-            customText.setPosition(sf::Vector2f(203, 153));
+            customText.setPosition(sf::Vector2f(203, 165));
             customText.setString(std::to_string(game.highscore[1]));
             app.draw(customText);
 
-            customText.setPosition(sf::Vector2f(13, 233));
+            customText.setPosition(sf::Vector2f(13, 257));
             customText.setString("Hard");
             app.draw(customText);
-            customText.setPosition(sf::Vector2f(203, 233));
+            customText.setPosition(sf::Vector2f(203, 257));
             customText.setString(std::to_string(game.highscore[2]));
             app.draw(customText);
         }
         else if (appState == 3) {
-            drawSprite(sprite, app, 39 * 3, 32, 39, 39, 236, 5);
+            drawSprite(sprite, app, 483, 0, 39, 39, 236, 5);
             auto res = sf::VideoMode::getDesktopMode();
 
             app.draw(customBombs);
@@ -732,7 +728,7 @@ int main()
             customText.setString("Width");
             app.draw(customText);
             if((errc & 4) || (errc & 8)) {
-                if(errc & 4) errText.setString("Width must > 0");
+                if(errc & 4) errText.setString("Width must > 8");
                 else errText.setString("Width must < " + std::to_string(res.width / 32 - 1));
                 errText.setPosition(sf::Vector2f(13, 130));
                 app.draw(errText);
@@ -758,7 +754,6 @@ int main()
             drawSprite(sprite, app, 39 * 5 + 32 * 5, 32, 32, 32, 64 + 64, 285 + 32);
             drawSprite(sprite, app, 39 * 5 + 32 * 5, 32, 32, 32, 64 + 96, 285 + 32);
             drawSprite(sprite, app, 39 * 5 + 32 * 6, 32, 32, 32, 64 + 128, 285 + 32);
-
             customText.setPosition(sf::Vector2f(72, 300));
             customText.setString("Let's start");
             app.draw(customText);
