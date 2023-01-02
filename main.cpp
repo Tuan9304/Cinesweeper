@@ -290,7 +290,7 @@ struct MainGame {
         width = level.width;
         lvl = level.dif;
         numsCell = height * width;
-        bombs = std::min(numsCell - 1, level.bombs);
+        bombs = level.bombs;
         newgame();
     }
     void flagCell(int idx)
@@ -347,6 +347,7 @@ struct MainGame {
                     display[i] = 13;
                 }
             }
+            displayTime();
             gameStatus = 1;
             isStop = 1;
             return;
@@ -380,6 +381,7 @@ struct MainGame {
                     display[bomb] = 11;
                 }
             }
+            displayTime();
             gameStatus = 2;
             isStop = 1;
 
@@ -461,7 +463,7 @@ bool checkCustomMode(int height, int width, int bombs, int &errc) {
     if(width > (res.width / 32) - 2) {
         errc |= 8;
     }
-    if(bombs > height * width) {
+    if(bombs >= height * width) {
         errc |= 16;
     }
     return !errc;
@@ -475,7 +477,7 @@ int main()
     sf::Image icon;
     sf::Music music;
     short appState = 0;
-    int errc = 0;
+    int errc = 0, curCusCell = 0;
 
     // load assets
     if (!font.loadFromFile("assets/Comfortaa-Regular.ttf") ||
@@ -526,7 +528,7 @@ int main()
 
     // sound
     music.setLoop(1);
-    music.setVolume(6);
+    music.setVolume(16);
     music.setPlayingOffset(sf::seconds(rng() % 200));
     music.play();
 
@@ -651,6 +653,7 @@ int main()
                         int h = customHeight.getNum();
                         int w = customWidth.getNum();
                         int b = customBombs.getNum();
+                        curCusCell = h * w;
                         if(checkCustomMode(h, w, b, errc)) {
                             Level cst(h, w, b, 3);
                             for(int i = 0; i <= 2; i++) {
@@ -754,7 +757,7 @@ int main()
             customText.setPosition(sf::Vector2f(13, 73));
             customText.setString("Height");
             app.draw(customText);
-            if((errc & 1) || (errc & 2)) {
+            if(errc & 3) {
                 if(errc & 1) errText.setString("Height must >= 1");
                 else errText.setString("Height must <= " + std::to_string(res.height / 32 - 7));
                 errText.setPosition(sf::Vector2f(13, 50));
@@ -765,7 +768,7 @@ int main()
             customText.setPosition(sf::Vector2f(13, 153));
             customText.setString("Width");
             app.draw(customText);
-            if((errc & 4) || (errc & 8)) {
+            if(errc & 12) {
                 if(errc & 4) errText.setString("Width must >= 9");
                 else errText.setString("Width must <= " + std::to_string(res.width / 32 - 2));
                 errText.setPosition(sf::Vector2f(13, 130));
@@ -776,8 +779,8 @@ int main()
             customText.setPosition(sf::Vector2f(13, 233));
             customText.setString("Bombs");
             app.draw(customText);
-            if(errc & 16) {
-                errText.setString("Bombs must <= HxW (" + std::to_string(customHeight.getNum() * customWidth.getNum()) + ")");
+            if(!(errc & 15) && errc & 16) {
+                errText.setString("Bombs must <= " + std::to_string(curCusCell - 1));
                 errText.setPosition(sf::Vector2f(13, 210));
                 app.draw(errText);
             }
