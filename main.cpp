@@ -528,7 +528,7 @@ int main()
 
     // sound
     music.setLoop(1);
-    music.setVolume(16);
+    music.setVolume(17);
     music.setPlayingOffset(sf::seconds(rng() % 200));
     music.play();
 
