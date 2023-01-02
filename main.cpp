@@ -703,7 +703,7 @@ int main()
             app.draw(text);
 
             text.setString(std::to_string(game.gameStatus == 2 ? 0 : game.bombsRemain));
-            text.setPosition(sf::Vector2f(32 * game.width - 100, 14));
+            text.setPosition(sf::Vector2f(32 * game.width - 125, 14));
             app.draw(text);
         }
         else if (appState == 1) {
@@ -755,8 +755,8 @@ int main()
             customText.setString("Height");
             app.draw(customText);
             if((errc & 1) || (errc & 2)) {
-                if(errc & 1) errText.setString("Height must > 0");
-                else errText.setString("Height must < " + std::to_string(res.height / 32 - 6));
+                if(errc & 1) errText.setString("Height must >= 1");
+                else errText.setString("Height must <= " + std::to_string(res.height / 32 - 7));
                 errText.setPosition(sf::Vector2f(13, 50));
                 app.draw(errText);
             }
@@ -766,8 +766,8 @@ int main()
             customText.setString("Width");
             app.draw(customText);
             if((errc & 4) || (errc & 8)) {
-                if(errc & 4) errText.setString("Width must > 8");
-                else errText.setString("Width must < " + std::to_string(res.width / 32 - 1));
+                if(errc & 4) errText.setString("Width must >= 9");
+                else errText.setString("Width must <= " + std::to_string(res.width / 32 - 2));
                 errText.setPosition(sf::Vector2f(13, 130));
                 app.draw(errText);
             }
