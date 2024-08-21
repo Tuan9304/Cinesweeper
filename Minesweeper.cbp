@@ -65,14 +65,14 @@
 			<Add option="-Wall" />
 			<Add option="-std=c++17" />
 			<Add option="-DSFML_STATIC" />
-			<Add directory="C:/SFML/2.6.x/include" />
+			<Add directory="$(#sfml.include)" />
 		</Compiler>
 		<Linker>
 			<Add option="-O2" />
 			<Add option="-static-libstdc++" />
 			<Add option="-static-libgcc" />
 			<Add option="-static" />
-			<Add directory="C:/SFML/2.6.x/lib" />
+			<Add directory="$(#sfml.lib)" />
 		</Linker>
 		<Unit filename="icon.rc">
 			<Option compilerVar="WINDRES" />
