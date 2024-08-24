@@ -5,14 +5,10 @@
 #include <random>
 #include <queue>
 #include <fstream>
-#include <thread>
-#include <chrono>
-#include <atomic>
-#include <condition_variable>
-#include <mutex>
-// temp
 #include <string>
 #include <iostream>
+
+#include "Clock.h"
 
 using ii = std::pair<int, int>;
 using vi = std::vector<int>;
@@ -31,72 +27,6 @@ const short tx[] = { 0, 1, 2, 0, 0, 1, 2, 2, 1 },
 
 const short mx[] = { 32, 32 * 5, 32, 32 * 5 },
             my[] = { 32, 32, 32 * 5, 32 * 5 };
-
-struct Timer {
-    template<typename Func>
-    void setInterval(Func func, int interval) {
-        exitThread = 0;
-        if(t.joinable()) {
-            std::cerr << "Thread error\n";
-        }
-        else {
-            t = std::thread([=]() {
-                while(!exitThread) {
-                    {
-                        std::unique_lock<std::mutex> lock(mtxAlert);
-                        if(sigAlert.wait_for(lock, std::chrono::milliseconds(interval), [&]() { return exitThread.load(); })) {
-                            break;
-                        }
-                    }
-                    func();
-                }
-            });
-        }
-    }
-    void stop() {
-        {
-            std::lock_guard<std::mutex> guard(mtxAlert);
-            exitThread = 1;
-        }
-        sigAlert.notify_all();
-        if(t.joinable()) {
-            t.join();
-        }
-    }
-private:
-    std::thread t;
-    std::atomic<bool> exitThread = 0;
-    std::mutex mtxAlert;
-    std::condition_variable sigAlert;
-};
-
-struct Clock {
-    const int hs = 2;
-    void load(int init) {
-        t.stop();
-        timer = init;
-        t.setInterval([&]() {
-            timer++;
-        }, 238);
-    }
-    void stop() {
-        t.stop();
-    }
-    int restart() {
-        int et = timer;
-        load(0);
-        return et;
-    }
-    int getElapsedTime() {
-        return timer >> hs;
-    }
-    int getRawTime() {
-        return timer;
-    }
-private:
-    int timer = 0;
-    Timer t;
-};
 
 struct NumField : public sf::Drawable {
     NumField(unsigned int maxd, const sf::Vector2f &pos) {
@@ -421,7 +351,7 @@ struct MainGame {
         clock.restart();
     }
 private:
-    Clock clock;
+    Time::Clock clock;
     int lastTime, lvl;
     vi bombCells, cells;
 

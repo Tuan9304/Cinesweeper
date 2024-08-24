@@ -74,6 +74,9 @@
 			<Add option="-static" />
 			<Add directory="$(#sfml.lib)" />
 		</Linker>
+		<Unit filename="Clock.cpp" />
+		<Unit filename="Clock.h" />
+		<Unit filename="Timer.h" />
 		<Unit filename="icon.rc">
 			<Option compilerVar="WINDRES" />
 		</Unit>
