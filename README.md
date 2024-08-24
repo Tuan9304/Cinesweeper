@@ -34,14 +34,6 @@
    - Launch the game directly from Code::Blocks after compiling.
    - Alternatively, run the compiled executable found in `./bin/Release/`. Ensure the `assets` folder and `openal32.dll` are in the same directory as the executable.
 
-## 📂 **Project Structure** 📂
-
-- **`assets/`**: Contains all game assets (images, music, etc.).
-- **`icon.ico`, `icon.rc`**: Files for the application's icon.
-- **`main.cpp`**: The main game source code.
-- **`Minesweeper.cbp`**: Code::Blocks project file.
-- **`openal32.dll`**: Audio support file.
-
 ## 🛠️ **Technical Details** 🛠️
 
 - **Timer Implementation**: The game uses a custom timer built with C++ standard threading and synchronization mechanisms, ensuring precise interval management and reliable game timing.
