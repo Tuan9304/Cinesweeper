@@ -2,14 +2,13 @@
 
 Cinesweeper is a feature-rich Minesweeper game developed in C++ using the SFML library. It combines classic Minesweeper gameplay with modern enhancements including customizable game settings, automatic save functionality, and an integrated music player.
 
-## Features
+## Key Features
 
-- **Classic Minesweeper Gameplay**: Traditional Minesweeper mechanics with left-click to reveal cells and right-click to flag mines
-- **Custom Timer**: High-precision timer implementation for accurate time tracking using C++ threading
-- **Game Customization**: Configure grid size and mine count to adjust difficulty levels
-- **Auto-Save System**: Automatic progress saving allows resuming games after closing the application
-- **High Score Tracking**: Records and displays your best completion times for each difficulty setting
-- **Background Music**: Built-in audio player with background music (volume controls planned for future release)
+- **Custom Timer Implementation**: High-precision timer using C++ standard library threading and synchronization
+- **Auto-Save System**: File I/O operations for game state persistence
+- **Dynamic Game Configuration**: Runtime-adjustable grid size and mine count
+- **High Score Management**: Data structure implementation for tracking and storing player statistics
+- **Audio Integration**: OpenAL implementation for background music playback
 
 ## Getting Started
 
@@ -58,26 +57,8 @@ The `MainGame` struct serves as the core game controller, managing:
 - Save/load operations for game persistence
 - High score recording and retrieval
 
-## How to Play
-
-1. **Starting a Game**: Launch the application and configure your desired grid size and mine count
-2. **Revealing Cells**: Left-click on a cell to reveal it
-3. **Flagging Mines**: Right-click on a cell to place or remove a flag where you suspect a mine
-4. **Winning**: Successfully reveal all non-mine cells to win the game
-5. **Game Over**: Clicking on a mine ends the game
-
-The numbers displayed on revealed cells indicate how many mines are adjacent to that cell.
-
 ## License
 
 Cinesweeper is licensed under the GNU General Public License v3.0 (GPL-3.0). For more information, see the [LICENSE](LICENSE) file.
 
-## Contributing
 
-Cinesweeper is a personal project, and contributions are welcome! While there are no strict guidelines, please:
-- Fork the repository
-- Create a feature branch for your changes
-- Test your modifications thoroughly
-- Submit a pull request with a clear description of your improvements
-
-All contributions will be reviewed and considered for inclusion in the project.
